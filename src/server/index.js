@@ -11,14 +11,15 @@ const session = require('express-session');
 const userRoutes = require('./routes/userRoutes');
 const booksRoutes = require('./routes/booksRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
+const supportRoutes = require('./routes/supportRoutes');
+const profileRoutes = require('./routes/profileRoutes');
 
 const sessionConfig = {
     secret: 'keyboard cat',
     resave: false, // don't save session if unmodified
     saveUninitialized: false, // don't create session until something stored
 };
-
-// initializing
+// initialization
 dotenv.config({ path: './.env' });
 const app = express();
 app.use(express.json({ extended: true }))
@@ -52,6 +53,12 @@ app.use('/api/books', booksRoutes);
 
 // routes for review
 app.use('/api/review', reviewRoutes);
+
+// routes for support/help
+app.use('/api/support', supportRoutes);
+
+// routes for profile
+app.use('/api/profile', profileRoutes);
 
 app.use('/api/*', (req, res) => {
     res.send('404 No routes found');

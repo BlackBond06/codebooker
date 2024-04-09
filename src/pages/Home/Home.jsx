@@ -1,19 +1,22 @@
-import React, { useEffect } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import Alert from '@mui/material/Alert';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
+import CssBaseline from '@mui/material/CssBaseline';
+import Snackbar from '@mui/material/Snackbar';
+import Switch from '@mui/material/Switch';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
-import Switch from '@mui/material/Switch';
-import NotificationsIcon from '@mui/icons-material/Notifications';
-import CssBaseline from '@mui/material/CssBaseline';
-import Library from '../../components/Library/Library';
-import SideNav from '../../components/SideNav/SideNav';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import axios from 'axios';
+import React, { useEffect, useRef } from 'react';
+import { useLocation } from 'react-router';
 import BookSearch from '../../components/BookSearch/BookSearch';
 import Dropdown from '../../components/Dropdown/Dropdown';
-import useMediaQuery from '@mui/material/useMediaQuery';
-import { useLocation } from 'react-router';
+import Library from '../../components/Library/Library';
+import SideNav from '../../components/SideNav/SideNav';
+import CreateProfileAlert from '../Profile/CreateProfileAlert';
 import './Home.css';
 
 const label = { inputProps: { 'aria-label': 'Color switch demo' } };
@@ -43,26 +46,55 @@ const darkTheme = createTheme({
 
 function Home() {
     const [isDarkMode, setIsDarkMode] = React.useState(false);
-
     const [filter, setFilter] = React.useState('');
     const location = useLocation();
     const handleToggleDarkMode = () => {
         setIsDarkMode(!isDarkMode);
     };
-    const notify = (username) => toast.success('Welcome! ' + username);
 
-    useEffect(() => {
-        if (location?.state?.loggin || localStorage.getItem('user')) {
-            if (
-                location.state &&
-                location.state.loggin &&
-                localStorage.getItem('user')
-            ) {
-                notify(JSON.parse(localStorage.getItem('user')).username);
+    // Manage Snackbar state and setup notify function
+    const [openSnackbar, setOpenSnackbar] = React.useState(false);
+    const [snackbarMessage, setSnackbarMessage] = React.useState('');
+    const [createProfileNotice, setCreateProfileNotice] = React.useState(false);
+    const notify = (username) => {
+        setSnackbarMessage('Welcome! ' + username);
+        setOpenSnackbar(true);
+    };
+    const checkProfileExistenceInDB = async () => {
+        try {
+            const response = await axios.get(
+                'http://localhost:3001/api/profile/get-profile'
+            );
+            if (response.status === 200) return;
+        } catch (error) {
+            // Handle error
+            if (error?.response?.status === 404) {
+                setTimeout(() => {
+                    setCreateProfileNotice(true);
+                }, 2000);
             }
+            console.error('Error fetching user profile:', error);
         }
+    };
+    // Hook used to track whether useEffect has run
+    const hasRun = useRef(false);
+    useEffect(() => {
+        if (!hasRun.current) {
+            if (location?.state?.loggin || localStorage.getItem('user')) {
+                if (
+                    location.state &&
+                    location.state.loggin &&
+                    localStorage.getItem('user')
+                ) {
+                    notify(JSON.parse(localStorage.getItem('user')).username);
+                }
+            }
+            hasRun.current = true; //Toggle hasRun to true to prevent useEffect from running twice
+        }
+    }, [location.state]);
+    useEffect(() => {
+        checkProfileExistenceInDB();
     }, []);
-
     const matches = useMediaQuery('(max-width:700px)');
     return (
         <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
@@ -78,9 +110,17 @@ function Home() {
                             <Typography
                                 variant={`${matches ? 'h7' : 'h5'}`}
                                 component='div'
-                                sx={{ flexGrow: 1, letterSpacing: '0.009em' }}
+                                sx={{
+                                    flexGrow: 1,
+                                }}
                             >
-                                CodeBooker
+                                <div className='codebooker-logo'>
+                                    <img
+                                        src='Assets/codebooker-logo.png'
+                                        alt='CodeBooker logo'
+                                    />
+                                    <div className='animate'></div>
+                                </div>
                             </Typography>
 
                             <BookSearch
@@ -107,7 +147,20 @@ function Home() {
                 </Box>
                 <Library filter={filter} setFilter={setFilter} />
             </div>
-            <Toaster />
+            <Snackbar
+                open={openSnackbar}
+                autoHideDuration={6000}
+                onClose={() => setOpenSnackbar(false)}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert
+                    onClose={() => setOpenSnackbar(false)}
+                    severity='success'
+                >
+                    {snackbarMessage}
+                </Alert>
+            </Snackbar>
+            {createProfileNotice && <CreateProfileAlert />}
         </ThemeProvider>
     );
 }

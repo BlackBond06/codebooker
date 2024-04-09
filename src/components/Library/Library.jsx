@@ -90,6 +90,11 @@ export default function Library({ filter, setFilter }) {
     const userId = JSON.parse(localStorage.getItem('user'))._id;
     //This state helps us for two way in input filed
     const [isAdded, handleIsAdded] = useState(false);
+    //Add to library modal
+    const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
+    // prettier-ignore
+    const [addToPersonalLibraryMessage, setAddToPersonalLibraryMessage] = useState(null);
+
     const removeBookByName = async (row) => {
         try {
             setLoading(true);
@@ -167,21 +172,110 @@ export default function Library({ filter, setFilter }) {
         setLoading(false);
     };
 
-    // fectch book from db
+    const addBookToPersonalLibrary = async (book) => {
+        try {
+            const response = await axios.post(
+                'http://localhost:3001/api/books/add-book-to-personal-library',
+                { book }
+            );
+
+            setAddToPersonalLibraryMessage(response.data.payload);
+            setIsLibraryModalOpen(true);
+        } catch (error) {
+            console.log(error);
+        }
+    };
+
+    const addBooksToDB = async (fileBooks) => {
+        try {
+            const userData = JSON.parse(localStorage.getItem('user'));
+
+            // Check if userData is not null before accessing its properties
+            if (userData) {
+                // Iterate through each book in the file
+                for (const bookObj of fileBooks) {
+                    const userId = userData._id;
+                    const userEmail = userData.email;
+
+                    const {
+                        title,
+                        author,
+                        category,
+                        publisher,
+                        ISBN,
+                        year,
+                        edition,
+                    } = bookObj;
+                    console.log('Adding book', bookObj);
+
+                    // Send a request to add the book to the backend
+                    await axios.post(
+                        'http://localhost:3001/api/books/newbook',
+                        {
+                            bookObj: {
+                                userId,
+                                userEmail,
+                                name: title,
+                                author,
+                                category,
+                                publisher,
+                                isbn: ISBN,
+                                year,
+                                edition,
+                                reviews: [],
+                            },
+                        }
+                    );
+
+                    // // Introduce a delay (e.g., 500 milliseconds) between requests
+                    // await new Promise((resolve) => setTimeout(resolve, 500));
+                }
+
+                // After adding all books, fetch books from the backend
+                fetchBooksFromDB();
+            } else {
+                console.error('Error adding books from file:', error);
+            }
+        } catch (error) {
+            // Handle error
+            console.error('Error adding books from file:', error);
+        }
+    };
+
     const fetchBooksFromDB = async () => {
         try {
             setLoading(true);
+
+            // Fetch data from the database
             const response = await axios.get(
                 'http://localhost:3001/api/books/getall'
             );
             const books = response.data;
-            setMyRows([...books]);
+            console.log(books);
+            // If the database has no books, fetch data from the file
+            if (books.length === 0) {
+                const fileResponse = await axios.get(
+                    'http://localhost:3001/api/books/filedata'
+                );
+                const fileBooks = fileResponse.data;
+
+                // Assuming fileBooks is an array of books from the file
+                setMyRows([...fileBooks]);
+
+                // Add books to the database
+                await addBooksToDB(fileBooks);
+            } else {
+                // Database has books, use them
+                setMyRows([...books]);
+            }
         } catch (error) {
             // Handle error
             console.error('Error fetching books:', error);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
+
     const resetBookState = () => {
         setName('');
         setAuthor('');
@@ -337,11 +431,12 @@ export default function Library({ filter, setFilter }) {
             setMyRows([]);
             setFilter('');
         };
-    }, [filter, myRows]);
+    }, [filter, setFilter, myRows]);
 
+    //remove the empty dependency array
     useEffect(() => {
         fetchBooksFromDB();
-    }, []);
+    });
 
     // open hidden content when ellipsis icon is clicked
     const handleShowMore = (index) => {
@@ -608,6 +703,43 @@ export default function Library({ filter, setFilter }) {
                             </>
                         )}
                     </form>
+                </Box>
+            </Modal>
+            {/* Add to Library modal */}
+            <Modal
+                open={isLibraryModalOpen}
+                onClose={() => {
+                    setIsLibraryModalOpen(false);
+                }}
+            >
+                {/* prettier-ignore */}
+                <Box
+                  sx={style}
+                  style={{ width: '40%' }}>
+                    <Typography
+                        id='modal-modal-title'
+                        variant='h6'
+                        component='h2'
+                        className={addToPersonalLibraryMessage ?`${Classes.addToGlobalLibrarySuccess}`:`${Classes.addToGlobalLibraryError}`}
+                    >
+                      { addToPersonalLibraryMessage? 'Book successfully added to personal library':'Book already exist in  personal library'  }
+                      <Box
+                       display={'flex'}
+                       justifyContent={'center'}
+
+                      >
+                      <Button
+                            color='info'
+                            style={{ marginTop: '10px' }}
+                            onClick={() => {
+                                setIsLibraryModalOpen(false);
+                            }}
+                            autoFocus
+                            >
+                            Close
+                        </Button>
+                         </Box>
+                    </Typography>
                 </Box>
             </Modal>
             {myRows.length > 0 ? (
@@ -1004,8 +1136,21 @@ export default function Library({ filter, setFilter }) {
                                                 setEnableReviewModal(true);
                                             }}
                                         >
-                                            {' '}
                                             Read Reviews
+                                        </Button>
+                                        <Button
+                                            type='submit'
+                                            variant='contained'
+                                            color='secondary'
+                                            style={{
+                                                marginLeft: '10px',
+                                                width: '80px',
+                                            }}
+                                            onClick={() => {
+                                                addBookToPersonalLibrary(row);
+                                            }}
+                                        >
+                                            Add to library
                                         </Button>
                                     </TableCell>
                                 </TableRow>
