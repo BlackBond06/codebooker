@@ -18,8 +18,8 @@ const sessionConfig = {
     saveUninitialized: false, // don't create session until something stored
 };
 
-// initilizing
-dotenv.config();
+// initializing
+dotenv.config({ path: './.env' });
 const app = express();
 app.use(express.json({ extended: true }))
     .use(express.urlencoded({ extended: true }))
@@ -59,7 +59,7 @@ app.use('/api/*', (req, res) => {
 
 // listening port
 // port
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 4001;
 app.listen(PORT, () => {
     console.log(`Server is running at Port ${PORT}`);
 });

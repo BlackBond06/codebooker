@@ -62,5 +62,13 @@
     },
     "emmet.includeLanguages": {
         "javascriptreact": "javascriptreact"
-    }
+    },
+    "cSpell.ignoreWords": [
+        "Bowne",
+        "Logesh",
+        "codebooker",
+        "gbowne",
+        "resave",
+        "svgr"
+    ]
 }
